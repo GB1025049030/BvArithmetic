@@ -3,8 +3,11 @@ package com.bvirtual;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
 import android.util.AttributeSet;
 import android.view.View;
+
+import com.azmohan.bvarithmetic.R;
 
 
 /**
@@ -65,12 +68,21 @@ public class BvirtualDemoView extends View {
     public BvirtualDemoView(Context context, AttributeSet attrs) {
         super(context, attrs);
         mGaussianBlur = new GaussianBlur(context);
+        BitmapDrawable drawable = (BitmapDrawable) context.getResources().getDrawable(R.drawable.lijiang);
+        mPreviewBitmap = drawable.getBitmap();
     }
+
 
     public void destroy() {
         if (mGaussianBlur != null) {
             mGaussianBlur.destoryBlur();
         }
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        this.setMeasuredDimension(mPreviewBitmap.getWidth(), mPreviewBitmap.getHeight());
     }
 
     @Override
@@ -101,6 +113,7 @@ public class BvirtualDemoView extends View {
             Bitmap outBitmap = Bitmap.createBitmap(mPreviewBitmap, outRect.left, outRect.top, outRect.getWidth(), outRect.getHeight());
             Bitmap bgBlurBitmap = mGaussianBlur.blurBitmap(mPreviewBitmap, 8);
             Bitmap outBlurBitmap = mGaussianBlur.blurBitmap(outBitmap, 3);
+            SmoothBlurJni.smoothRender(mPreviewBitmap, inBitmap);
             canvas.drawBitmap(bgBlurBitmap, 0, 0, null);
             canvas.drawBitmap(outBlurBitmap, outRect.left, outRect.top, null);
             canvas.drawBitmap(inBitmap, inRect.left, inRect.top, null);
