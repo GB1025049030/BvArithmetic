@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.AttributeSet;
+import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 
 import com.azmohan.bvarithmetic.R;
@@ -18,9 +20,11 @@ public class BvirtualDemoView extends View {
     private int mOnSingleX;
     private int mOnSingleY;
     private GaussianBlur mGaussianBlur;
-    private final static int IN_SHARPNESS_SIZE = 200;
-    private final static int MID_SHARPNESS_SIZE = 400;
-    private final static int OUT_SHARPNESS_SIZE = 300;
+    private final static int IN_SHARPNESS_RADIUS = 150;
+    private final static int OUT_SHARPNESS_RADIUS = 250;
+    private final static int FULL_RADIUS = 300;
+    private Bitmap mIndicator;
+    private boolean mIsPressed;
 
     public static class SharpnessRect {
         public int top;
@@ -28,11 +32,11 @@ public class BvirtualDemoView extends View {
         public int left;
         public int right;
 
-        public SharpnessRect(int x, int y, int size, int bitmapW, int bitmapH) {
-            top = y - size / 2;
-            left = x - size / 2;
-            bottom = y + size / 2;
-            right = x + size / 2;
+        public SharpnessRect(int x, int y, int r, int bitmapW, int bitmapH) {
+            top = y - r;
+            left = x - r;
+            bottom = y + r;
+            right = x + r;
             if (top < 0 || top > bitmapH) {
                 top = 0;
             }
@@ -70,6 +74,8 @@ public class BvirtualDemoView extends View {
         mGaussianBlur = new GaussianBlur(context);
         BitmapDrawable drawable = (BitmapDrawable) context.getResources().getDrawable(R.drawable.lijiang);
         mPreviewBitmap = drawable.getBitmap();
+        BitmapDrawable indicatorDrawable = (BitmapDrawable) context.getResources().getDrawable(R.drawable.freeme_bvirtual_indicator);
+        mIndicator = indicatorDrawable.getBitmap();
     }
 
 
@@ -77,6 +83,21 @@ public class BvirtualDemoView extends View {
         if (mGaussianBlur != null) {
             mGaussianBlur.destoryBlur();
         }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent ev) {
+        int action = ev.getAction();
+        mOnSingleX = (int) ev.getX();
+        mOnSingleY = (int) ev.getY();
+        if (action == MotionEvent.ACTION_DOWN) {
+            mIsPressed = true;
+        } else if (action == MotionEvent.ACTION_UP) {
+            mIsPressed = false;
+        } else if (action == MotionEvent.ACTION_MOVE) {
+        }
+        this.invalidate();
+        return true;
     }
 
     @Override
@@ -96,6 +117,9 @@ public class BvirtualDemoView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         drawTrueBgVirtualWithCanvas(canvas);
+        if (mIsPressed) {
+            canvas.drawBitmap(mIndicator, mOnSingleX - mIndicator.getWidth() / 2, mOnSingleY - mIndicator.getHeight() / 2, null);
+        }
     }
 
     public void setPreviewBitmap(Bitmap bitmap) {
@@ -106,23 +130,18 @@ public class BvirtualDemoView extends View {
     }
 
     private void drawTrueBgVirtualWithCanvas(Canvas canvas) {
+        long time = System.currentTimeMillis();
         if (mPreviewBitmap != null && mGaussianBlur != null) {
-            SharpnessRect inRect = new SharpnessRect(mOnSingleX, mOnSingleY, IN_SHARPNESS_SIZE, mPreviewBitmap.getWidth(), mPreviewBitmap.getHeight());
-            Bitmap inBitmap = Bitmap.createBitmap(mPreviewBitmap, inRect.left, inRect.top, inRect.getWidth(), inRect.getHeight());
-            SharpnessRect outRect = new SharpnessRect(mOnSingleX, mOnSingleY, OUT_SHARPNESS_SIZE, mPreviewBitmap.getWidth(), mPreviewBitmap.getHeight());
-            Bitmap outBitmap = Bitmap.createBitmap(mPreviewBitmap, outRect.left, outRect.top, outRect.getWidth(), outRect.getHeight());
             Bitmap bgBlurBitmap = mGaussianBlur.blurBitmap(mPreviewBitmap, 8);
-            Bitmap outBlurBitmap = mGaussianBlur.blurBitmap(outBitmap, 3);
-            SmoothBlurJni.smoothRender(mPreviewBitmap, inBitmap);
+            BlurInfo info = new BlurInfo();
+            info.x = mOnSingleX;
+            info.y = mOnSingleY;
+            info.inRadius = IN_SHARPNESS_RADIUS;
+            info.outRadius = OUT_SHARPNESS_RADIUS;
+            SmoothBlurJni.smoothRender(bgBlurBitmap, mPreviewBitmap, info);
             canvas.drawBitmap(bgBlurBitmap, 0, 0, null);
-            canvas.drawBitmap(outBlurBitmap, outRect.left, outRect.top, null);
-            canvas.drawBitmap(inBitmap, inRect.left, inRect.top, null);
-            mPreviewBitmap.recycle();
             bgBlurBitmap.recycle();
-            outBitmap.recycle();
-            outBlurBitmap.recycle();
-            inBitmap.recycle();
         }
-
+        Log.e("SmoothBlur", "drawTrueBgVirtualWithCanvas : " + (System.currentTimeMillis() - time) + " ms");
     }
 }
